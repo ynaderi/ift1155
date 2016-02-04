@@ -16,7 +16,12 @@
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
         </activity>
-        <activity android:name=".TripActivity"></activity>
+        <activity android:name=".TripActivity" />
+
+        <service
+            android:name=".PopulateDatabaseService"
+            android:enabled="true"
+            android:exported="true"></service>
     </application>
 
 </manifest>

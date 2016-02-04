@@ -1,6 +1,7 @@
 package com.example.dift1155.myapplication;
 
 import android.app.Activity;
+import android.content.Intent;
 import android.database.sqlite.SQLiteDatabase;
 import android.os.AsyncTask;
 import android.os.Bundle;
@@ -29,52 +30,22 @@ public class MainActivity extends Activity {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
 
-        new AsyncTask<String,Integer,Void>() {
+        SQLiteDatabase db = openOrCreateDatabase("stm_gtfs", MODE_PRIVATE, null);
 
-            @Override
-            protected Void doInBackground(String... params) {
+        db.execSQL("create table trips (name text, description text)");
 
-                Integer[] progress = new Integer[params.length];
+        db.execSQL("insert into trips (name, description) values (?, ?)", new String[] {
+                "Albert",
+                "Un génie parmi tant d'autres"
+        });
 
-                ZipInputStream zis =  new ZipInputStream(getResources().openRawResource(R.raw.gtfs_stm));
 
-                ZipEntry currentEntry;
+        Intent populateDatabaseIntent = new Intent(this, PopulateDatabaseService.class);
 
-                try {
-                    while ((currentEntry = zis.getNextEntry()) != null) {
-                        for (int i = 0; i < params.length; i++) {
-                            String tableName = params[i];
+        String[] tables = {"routes", "stop_times", "stops", "trips"};
+        populateDatabaseIntent.putExtra("tables", tables);
 
-                            if (tableName.equals(currentEntry.getName().substring(0, currentEntry.getName().lastIndexOf(".")))) {
-
-                                CSVParser parser = new CSVParser(new InputStreamReader(zis), CSVFormat.RFC4180);
-
-                                for (CSVRecord row : parser) {
-                                    progress[i] += 1;
-                                    publishProgress(progress);
-                                }
-                            }
-
-                        }
-                    }
-                } catch (IOException err) {
-                    // ...
-                }
-                return null;
-            }
-
-            @Override
-            protected void onProgressUpdate(Integer... progress) {
-                // TODO: progrès!
-            }
-
-            @Override
-            protected void onPostExecute(Void result) {
-
-            }
-
-        }.execute("routes", "stop_times", "stops", "trips");
-
+        startService(populateDatabaseIntent);
     }
 
     @Override
