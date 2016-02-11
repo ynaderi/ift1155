@@ -55,9 +55,10 @@ public class PopulateDatabaseService extends Service {
 
             SQLiteDatabase db = openOrCreateDatabase("stm_gtfs", MODE_PRIVATE, null);
 
+            db.setForeignKeyConstraintsEnabled(true);
+
             try {
                 while ((currentEntry = zis.getNextEntry()) != null) {
-
 
                     for (int i = 0; i < tables.length; i++) {
 
@@ -75,7 +76,7 @@ public class PopulateDatabaseService extends Service {
                                     db.beginTransaction();
 
                                 ContentValues values = new ContentValues();
-
+                                
                                 for (Map.Entry<String, String> e : row.toMap().entrySet()) {
                                     values.put(e.getKey(), e.getValue());
                                 }
