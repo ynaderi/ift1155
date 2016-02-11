@@ -1,9 +1,14 @@
 package com.example.dift1155.myapplication;
 
+import android.app.IntentService;
+import android.app.Notification;
+import android.app.NotificationManager;
 import android.app.Service;
 import android.content.ContentValues;
 import android.content.Intent;
 import android.database.sqlite.SQLiteDatabase;
+import android.os.Binder;
+import android.os.Bundle;
 import android.os.HandlerThread;
 import android.os.IBinder;
 import android.os.IInterface;
@@ -32,92 +37,76 @@ import java.util.Map;
 import java.util.zip.ZipEntry;
 import java.util.zip.ZipInputStream;
 
-public class PopulateDatabaseService extends Service {
+public class PopulateDatabaseService extends IntentService {
 
     public static final int BATCH_SIZE = 50;
 
-    private Looper mServiceLooper;
-    private ServiceHandler mServiceHandler;
+     public PopulateDatabaseService() {
+        super("");
+    }
 
-    private final class ServiceHandler extends android.os.Handler {
+    @Override
+    protected void onHandleIntent(Intent intent) {
 
-        public ServiceHandler(Looper looper) {
-            super(looper);
-        }
+        NotificationManager nm = (NotificationManager) getSystemService(NOTIFICATION_SERVICE);
 
-        @Override
-        public void handleMessage(Message msg) {
-            String[] tables =  msg.getData().getStringArray("tables");
+        String[] tables =  intent.getExtras().getStringArray("tables");
 
-            ZipInputStream zis =  new ZipInputStream(getResources().openRawResource(R.raw.gtfs_stm));
+        ZipInputStream zis =  new ZipInputStream(getResources().openRawResource(R.raw.gtfs_stm));
 
-            ZipEntry currentEntry;
+        ZipEntry currentEntry;
 
-            SQLiteDatabase db = openOrCreateDatabase("stm_gtfs", MODE_PRIVATE, null);
+        SQLiteDatabase db = openOrCreateDatabase("stm_gtfs", MODE_PRIVATE, null);
 
-            db.setForeignKeyConstraintsEnabled(true);
+        db.setForeignKeyConstraintsEnabled(true);
 
-            try {
-                while ((currentEntry = zis.getNextEntry()) != null) {
+        try {
+            while ((currentEntry = zis.getNextEntry()) != null) {
 
-                    for (int i = 0; i < tables.length; i++) {
+                for (int i = 0; i < tables.length; i++) {
 
-                        String tableName = tables[i];
+                    String tableName = tables[i];
 
-                        if (tableName.equals(currentEntry.getName().substring(0, currentEntry.getName().lastIndexOf(".")))) {
+                    Bundle progressBundle = new Bundle();
 
-                            CSVParser parser = new CSVParser(new InputStreamReader(zis), CSVFormat.RFC4180);
-                            Iterator<CSVRecord> iter = parser.iterator();
-                            while (iter.hasNext()) {
-                                CSVRecord row = iter.next();
+                    progressBundle.putInt(Notification.EXTRA_PROGRESS, i);
+                    progressBundle.putInt(Notification.EXTRA_PROGRESS_MAX, tables.length);
 
-                                // TODO: ...
-                                if (row.getRecordNumber() % BATCH_SIZE == 0)
-                                    db.beginTransaction();
+                    nm.notify(R.id.PROGRESS_NOTIFICATION_ID, new Notification.Builder(PopulateDatabaseService.this)
+                            .setContentTitle("Chargement de la table " + tableName + "...")
+                            .setCategory(Notification.CATEGORY_PROGRESS)
+                            .setExtras(progressBundle)
+                            .build());
 
-                                ContentValues values = new ContentValues();
-                                
-                                for (Map.Entry<String, String> e : row.toMap().entrySet()) {
-                                    values.put(e.getKey(), e.getValue());
-                                }
+                    if (tableName.equals(currentEntry.getName().substring(0, currentEntry.getName().lastIndexOf(".")))) {
 
-                                db.insert(tableName, null, values);
+                        CSVParser parser = new CSVParser(new InputStreamReader(zis), CSVFormat.RFC4180);
+                        Iterator<CSVRecord> iter = parser.iterator();
+                        while (iter.hasNext()) {
+                            CSVRecord row = iter.next();
 
-                                if (row.getRecordNumber() % BATCH_SIZE == BATCH_SIZE - 1 || !iter.hasNext())
-                                    db.endTransaction();
+                            // TODO: ...
+                            if (row.getRecordNumber() % BATCH_SIZE == 0)
+                                db.beginTransaction();
+
+                            ContentValues values = new ContentValues();
+
+                            for (Map.Entry<String, String> e : row.toMap().entrySet()) {
+                                values.put(e.getKey(), e.getValue());
                             }
+
+                            db.insert(tableName, null, values);
+
+                            if (row.getRecordNumber() % BATCH_SIZE == BATCH_SIZE - 1 || !iter.hasNext())
+                                db.endTransaction();
                         }
                     }
                 }
-            } catch (IOException err) {
-                Log.e("", "", err);
             }
-
-            Toast.makeText(PopulateDatabaseService.this, "Imported tables " + Arrays.toString(tables), Toast.LENGTH_SHORT).show();
+        } catch (IOException err) {
+            Log.e("", "", err);
         }
-    }
 
-    public void onCreate() {
-        super.onCreate();
-        HandlerThread thread = new HandlerThread("ServiceStartArguments", Process.THREAD_PRIORITY_BACKGROUND);
-        thread.start();
-        mServiceLooper = thread.getLooper();
-        mServiceHandler = new ServiceHandler(mServiceLooper);
-    }
-
-    @Override
-    public int onStartCommand(Intent intent, int flags, int startId) {
-
-        Message m = mServiceHandler.obtainMessage();
-        m.setData(intent.getExtras());
-        mServiceHandler.sendMessage(m);
-
-        return START_STICKY;
-    }
-
-    @Nullable
-    @Override
-    public IBinder onBind(Intent intent) {
-        return null;
+        Toast.makeText(PopulateDatabaseService.this, "Imported tables " + Arrays.toString(tables), Toast.LENGTH_SHORT).show();
     }
 }

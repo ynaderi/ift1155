@@ -2,6 +2,8 @@ package com.example.dift1155.myapplication;
 
 import android.app.Activity;
 import android.content.Intent;
+import android.database.Cursor;
+import android.database.sqlite.SQLiteCursor;
 import android.database.sqlite.SQLiteDatabase;
 import android.database.sqlite.SQLiteTransactionListener;
 import android.os.AsyncTask;
@@ -75,6 +77,11 @@ public class MainActivity extends Activity {
             }
         }
 
+        Cursor cursor = (SQLiteCursor) db.rawQuery("select * from trips limit 10", new String[] {});
+
+        while (cursor.moveToNext()) {
+            cursor.getInt(cursor.getColumnIndex("trip_id"));
+        }
 
     }
 
