@@ -18,6 +18,7 @@ import android.widget.Spinner;
 
 import org.apache.commons.csv.*;
 import org.apache.commons.io.IOUtils;
+import org.apache.commons.lang3.StringUtils;
 
 import java.io.IOException;
 import java.io.InputStream;
@@ -37,12 +38,16 @@ public class MainActivity extends Activity {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
 
-        SQLiteDatabase db = openOrCreateDatabase("stm_gtfs", MODE_PRIVATE, null);
+        deleteDatabase("stm_gtfs");
+        final SQLiteDatabase db = openOrCreateDatabase("stm_gtfs", MODE_PRIVATE, null);
 
         // création du schéma 1.0
-        if (db.getVersion() < DATABASE_INITIAL_SCHEMA) {
+        if (db.needUpgrade(DATABASE_INITIAL_SCHEMA)) {
             try {
-                String schema = IOUtils.toString(getResources().openRawResource(R.raw.schema));
+                InputStream schemaStream = getResources().openRawResource(R.raw.schema);
+                String schema = IOUtils.toString(schemaStream);
+                IOUtils.closeQuietly(schemaStream);
+
 
                 db.beginTransactionWithListener(new SQLiteTransactionListener() {
                     @Override
@@ -52,7 +57,11 @@ public class MainActivity extends Activity {
 
                     @Override
                     public void onCommit() {
+
+                        Log.i("test", "Le schéma a été créé!");
+
                         Intent populateDatabaseIntent = new Intent(MainActivity.this, PopulateDatabaseService.class);
+
 
                         String[] tables = {"stops", "routes", "shapes", "trips", "stop_times"};
                         populateDatabaseIntent.putExtra("tables", tables);
@@ -62,27 +71,24 @@ public class MainActivity extends Activity {
 
                     @Override
                     public void onRollback() {
-                        Log.e("", "La création du schéma SQL a échouée.");
+                        Log.e("test", "La création du schéma SQL a échouée.");
                     }
                 });
 
+
                 for (String statement : schema.split(";")) {
-                    db.execSQL(statement);
+                    String st = StringUtils.normalizeSpace(statement.replaceAll("[\r\n]", ""));
+                    if (!st.isEmpty())
+                        db.execSQL(st);
                 }
                 db.setVersion(DATABASE_INITIAL_SCHEMA);
+                db.setTransactionSuccessful();
                 db.endTransaction();
 
             } catch (IOException e) {
                 e.printStackTrace();
             }
         }
-
-        Cursor cursor = (SQLiteCursor) db.rawQuery("select * from trips limit 10", new String[] {});
-
-        while (cursor.moveToNext()) {
-            cursor.getInt(cursor.getColumnIndex("trip_id"));
-        }
-
     }
 
     @Override

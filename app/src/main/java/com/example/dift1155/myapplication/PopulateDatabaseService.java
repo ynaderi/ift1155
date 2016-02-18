@@ -52,6 +52,8 @@ public class PopulateDatabaseService extends IntentService {
 
         String[] tables =  intent.getExtras().getStringArray("tables");
 
+        Log.d("test", "Population des tables: " + StringUtils.join(tables, ", "));
+
         ZipInputStream zis =  new ZipInputStream(getResources().openRawResource(R.raw.gtfs_stm));
 
         ZipEntry currentEntry;
@@ -62,6 +64,8 @@ public class PopulateDatabaseService extends IntentService {
 
         try {
             while ((currentEntry = zis.getNextEntry()) != null) {
+
+                Log.d("test", currentEntry.getName());
 
                 for (int i = 0; i < tables.length; i++) {
 
@@ -104,7 +108,7 @@ public class PopulateDatabaseService extends IntentService {
                 }
             }
         } catch (IOException err) {
-            Log.e("", "", err);
+            Log.e("test", "", err);
         }
 
         Toast.makeText(PopulateDatabaseService.this, "Imported tables " + Arrays.toString(tables), Toast.LENGTH_SHORT).show();
