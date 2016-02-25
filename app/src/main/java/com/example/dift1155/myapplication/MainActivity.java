@@ -38,7 +38,6 @@ public class MainActivity extends Activity {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
 
-        deleteDatabase("stm_gtfs");
         final SQLiteDatabase db = openOrCreateDatabase("stm_gtfs", MODE_PRIVATE, null);
 
         // création du schéma 1.0
@@ -88,6 +87,21 @@ public class MainActivity extends Activity {
             } catch (IOException e) {
                 e.printStackTrace();
             }
+        }
+
+        // TODO: enlever lorsque l'insertion est opérationnelle
+        // TODO: détecter les mises à jour
+        else {
+            Log.i("test", "Le schéma a été créé!");
+
+            Intent populateDatabaseIntent = new Intent(MainActivity.this, PopulateDatabaseService.class);
+
+
+            String[] tables = {"stops", "routes", "shapes", "trips", "stop_times"};
+            populateDatabaseIntent.putExtra("tables", tables);
+
+            startService(populateDatabaseIntent);
+
         }
     }
 
