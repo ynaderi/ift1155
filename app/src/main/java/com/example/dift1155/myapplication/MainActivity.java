@@ -103,6 +103,41 @@ public class MainActivity extends Activity {
             startService(populateDatabaseIntent);
 
         }
+
+        //
+        try {
+            String kBestTrips = IOUtils.toString(getResources().openRawResource(R.raw.k_best_trips))
+                    .replaceAll("[\r\n]|--$", "")
+                    .replaceAll(":\\w+", "?");
+
+            Log.i("test", kBestTrips);
+            // [\w-] [A-Za-z]
+            String departureTime = "now";
+            String aLat = "45.5010115", aLon = "-73.6179101";
+            String maxWalkingDistance  = "1000";
+            String bLat = "45.4961719", bLon = "-73.6247091";
+            db.rawQuery(StringUtils.normalizeSpace(kBestTrips), new String[] {
+                    departureTime,
+                    aLat,
+                    aLon,
+                    aLat,
+                    aLon,
+                    maxWalkingDistance,
+                    bLat,
+                    bLon,
+                    maxWalkingDistance,
+                    aLat,
+                    aLon,
+                    bLat,
+                    bLon,
+                    maxWalkingDistance,
+                    bLat,
+                    bLon,
+                    "10"
+            });
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
     }
 
     @Override

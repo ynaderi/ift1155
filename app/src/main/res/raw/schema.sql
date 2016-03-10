@@ -57,5 +57,4 @@ create table stop_times (
 
 create index ix_stop_times_departure_time on stop_times (departure_time);
 create index ix_stop_times_arrival_time   on stop_times (arrival_time);
-
-
+create index ix_stop_sequence             on stop_times (stop_sequence);

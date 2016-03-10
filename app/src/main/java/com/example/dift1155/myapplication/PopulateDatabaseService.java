@@ -18,6 +18,7 @@ import android.os.Parcel;
 import android.os.Process;
 import android.os.RemoteException;
 import android.support.annotation.Nullable;
+import android.support.v4.util.Pools;
 import android.util.Log;
 import android.widget.Toast;
 
@@ -34,6 +35,7 @@ import java.util.Arrays;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
+import java.util.Random;
 import java.util.zip.ZipEntry;
 import java.util.zip.ZipInputStream;
 
@@ -58,6 +60,8 @@ public class PopulateDatabaseService extends IntentService {
 
         SQLiteDatabase db = openOrCreateDatabase("stm_gtfs", MODE_PRIVATE, null);
 
+        Log.d("test", "Max size: " + db.getMaximumSize());
+
         // db.setForeignKeyConstraintsEnabled(true);
 
         db.beginTransactionNonExclusive();
@@ -80,19 +84,16 @@ public class PopulateDatabaseService extends IntentService {
 
                         Log.i("test", "Chargement de la table " + tableName + "...");
 
-                        Bundle progressBundle = new Bundle();
-
-                        progressBundle.putInt(Notification.EXTRA_PROGRESS, i);
-                        progressBundle.putInt(Notification.EXTRA_PROGRESS_MAX, tables.length);
-
                         nm.notify(R.id.PROGRESS_NOTIFICATION_ID, new Notification.Builder(PopulateDatabaseService.this)
                                 .setContentTitle("Chargement de la table " + tableName + "...")
                                 .setSmallIcon(android.R.drawable.ic_popup_sync)
                                 .setCategory(Notification.CATEGORY_PROGRESS)
-                                .setExtras(progressBundle)
+                                .setProgress(100, 0, true)
                                 .build());
 
                         CSVParser parser = new CSVParser(new InputStreamReader(zis), CSVFormat.RFC4180.withHeader());
+
+                        long cumulativeSize = 0;
 
                         for (CSVRecord row : parser) {
 
@@ -108,6 +109,15 @@ public class PopulateDatabaseService extends IntentService {
                                     values.put(e.getKey(), e.getValue());
                                 }
                             }
+
+                            cumulativeSize += row.toString().length();
+
+                            nm.notify(R.id.PROGRESS_NOTIFICATION_ID, new Notification.Builder(PopulateDatabaseService.this)
+                                    .setContentTitle("Chargement de la table " + tableName + "...")
+                                    .setSmallIcon(android.R.drawable.ic_popup_sync)
+                                    .setCategory(Notification.CATEGORY_PROGRESS)
+                                    .setProgress(100, (int) (cumulativeSize / currentEntry.getSize()) * 100, false)
+                                    .build());
 
                             db.insert(tableName, null, values);
                         }
