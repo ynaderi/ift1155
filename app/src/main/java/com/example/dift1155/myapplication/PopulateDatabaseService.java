@@ -29,15 +29,21 @@ import org.apache.commons.lang3.StringUtils;
 
 import java.io.FileDescriptor;
 import java.io.IOException;
+import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Date;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import java.util.Random;
 import java.util.zip.ZipEntry;
 import java.util.zip.ZipInputStream;
+
+import okhttp3.OkHttpClient;
+import okhttp3.Request;
+import okhttp3.Response;
 
 public class PopulateDatabaseService extends IntentService {
 
@@ -48,28 +54,62 @@ public class PopulateDatabaseService extends IntentService {
     @Override
     protected void onHandleIntent(Intent intent) {
 
+        SQLiteDatabase db = openOrCreateDatabase("stm_gtfs", MODE_PRIVATE, null);
+
+
         NotificationManager nm = (NotificationManager) getSystemService(NOTIFICATION_SERVICE);
 
         String[] tables = intent.getExtras().getStringArray("tables");
 
         Log.d("test", "Population des tables: " + StringUtils.join(tables, ", "));
 
-        ZipInputStream zis = new ZipInputStream(getResources().openRawResource(R.raw.gtfs_stm));
+        OkHttpClient client = new OkHttpClient();
+
+
+        try {
+            String lastModified = client.newCall(new Request.Builder()
+                    .head()
+                    .url("http://www.stm.info/sites/default/files/gtfs/gtfs_stm.zip")
+                    .build()).execute().header("Last-Modified");
+
+            String feedEndData = db.query("feed_info", new String[]{"feed_end_date"}, null, new String[]{}, null, null, null).getString(0);
+
+            // TODO: comparer lastModified > feedEndDate (alors télécharger la mise à jour)
+
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+
+        Request req = new Request.Builder()
+                .get()
+                .url("http://www.stm.info/sites/default/files/gtfs/gtfs_stm.zip")
+                .build();
+
+        Response res = null;
+        try {
+            res = client.newCall(req).execute();
+        } catch (IOException e) {
+            e.printStackTrace();
+            return;
+        }
+
+        InputStream inputStream = res.body().byteStream();
+
+        ZipInputStream zis = new ZipInputStream(inputStream);
 
         ZipEntry currentEntry;
 
-        SQLiteDatabase db = openOrCreateDatabase("stm_gtfs", MODE_PRIVATE, null);
 
         Log.d("test", "Max size: " + db.getMaximumSize());
 
-        // db.setForeignKeyConstraintsEnabled(true);
-
-        db.beginTransactionNonExclusive();
+        long begin  = System.nanoTime();
 
         // vider les tables en question!
         for (String table : tables) {
             db.delete(table, null, new String[]{});
         }
+
+        Random rnd = new Random();
 
         try {
             while ((currentEntry = zis.getNextEntry()) != null) {
