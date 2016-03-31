@@ -6,7 +6,7 @@ android {
 
     defaultConfig {
         applicationId "com.example.dift1155.myapplication"
-        minSdkVersion 23
+        minSdkVersion 22
         targetSdkVersion 23
         versionCode 1
         versionName "1.0"
@@ -34,5 +34,5 @@ dependencies {
     compile group: 'org.apache.commons', name: 'commons-lang3', version: '3.4'
     compile group: 'commons-io', name: 'commons-io', version: '2.4'
     compile 'com.android.support:recyclerview-v7:23.1.1'
-
+    compile 'com.google.android.gms:play-services-maps:8.4.0'
 }
