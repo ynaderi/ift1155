@@ -56,9 +56,12 @@ public class MainActivity extends Activity {
             InputStream migration = getResources().openRawResource(migrationId);
             db.beginTransaction();
             try {
-                String schema = IOUtils.toString(migration);
+                String schema = IOUtils.toString(migration)
+                        .replaceAll("--.*\r?\n", " ") // commentaires
+                        .replaceAll("\r?\n", " ");  // nouvelles lignes
                 for (String statement : schema.split(";")) {
-                    String st = StringUtils.normalizeSpace(statement.replaceAll("[\r\n]", ""));
+                    String st = StringUtils.normalizeSpace(statement);
+                    Log.i("test", st);
                     if (!st.isEmpty())
                         db.execSQL(st);
                 }
@@ -78,6 +81,24 @@ public class MainActivity extends Activity {
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
+
+        deleteDatabase("stm_gtfs");
+        final SQLiteDatabase db = openOrCreateDatabase("stm_gtfs", MODE_PRIVATE, null);
+
+        // création du schéma 1.0 et migrations
+        applyMigration(db, DATABASE_INITIAL_SCHEMA, R.raw.schema);
+        applyMigration(db, DATABASE_MIGRATION_1_1, R.raw.migration_1_1);
+
+        // TODO: détecter les mises à jour
+        Intent populateDatabaseIntent = new Intent(MainActivity.this, PopulateDatabaseService.class);
+
+        String[] tables = {"calendar_dates", "feed_info", "stops", "routes", "shapes", "trips", "stop_times"};
+        populateDatabaseIntent.putExtra("tables", tables);
+
+        startService(populateDatabaseIntent);
+
+        if (true)
+            return;
 
         MapFragment mapFragment = (MapFragment) getFragmentManager().findFragmentById(R.id.map);
 
@@ -100,21 +121,6 @@ public class MainActivity extends Activity {
             }
         });
 
-
-
-        final SQLiteDatabase db = openOrCreateDatabase("stm_gtfs", MODE_PRIVATE, null);
-
-        // création du schéma 1.0 et migrations
-        applyMigration(db, DATABASE_INITIAL_SCHEMA, R.raw.schema);
-        // applyMigration(db, DATABASE_MIGRATION_1_1, R.raw.migration_1_1);
-
-        // TODO: détecter les mises à jour
-        Intent populateDatabaseIntent = new Intent(MainActivity.this, PopulateDatabaseService.class);
-
-        String[] tables = {"stops", "routes", "shapes", "trips", "stop_times"};
-        populateDatabaseIntent.putExtra("tables", tables);
-
-        startService(populateDatabaseIntent);
 
         //
         try {
