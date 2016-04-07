@@ -6,7 +6,15 @@
 
 -- aucune correspondance
 
-select *
+select *,
+
+    -- concaténation des paires de coordonnées pour la forme à dessiner sur la carte
+    (select group_concat(shape_pt_lat || ',' || shape_pt_lon, ';') from shapes
+        where A_prime_B_prime_trips.shape_id = shapes.shape_id
+        group by shape_id
+        order by shape_pt_sequence),
+
+     A_prime_B_prime_trips.trip_id as _id -- pour le curseur
 
 from stops as A_prime -- arrêts à A'
 
@@ -22,20 +30,32 @@ join stop_times as B_prime_times on B_prime.stop_id = B_prime_times.stop_id -- t
 
 where
 
+-- filtre selon le type de service (semaine, fin de semaine, jour férié)
+service_id in (select service_id from calendar_dates where calendar_dates.date = strftime('%Y%m%d', date('now', 'localtime')))
+
 -- marche jusqu'à l'arrêt (5 km/h)
-time(A_prime_times.arrival_time) >= time(strftime('%s', 'now', 'localtime') + 1.37 * 51883.246273604 * (abs(A_prime.stop_lat - 45.5010115) + abs(A_prime.stop_lon - -73.6179101)), 'unixepoch') -- d(A) < d(A')
+and 3600 * substr(A_prime_times.arrival_time, 0, 3) + strftime('%s', '00' || substr(A_prime_times.arrival_time, 3))
+    >= strftime('%s', time('now', 'localtime')) + 1.37 * 98194.860939613 * (abs(A_prime.stop_lat - 45.5010115) + abs(A_prime.stop_lon - -73.6179101)) -- d(A) < d(A')
 
 -- filtre les points A' et B'
-and 51883.246273604 * (abs(A_prime.stop_lat - 45.5010115) + abs(A_prime.stop_lon - -73.6179101)) <= 1000
-and 51883.246273604 * (abs(45.4961719 - B_prime.stop_lat) + abs(-73.6247091 - B_prime.stop_lon)) <= 1000
+and 98194.860939613 * (abs(A_prime.stop_lat - 45.5010115) + abs(A_prime.stop_lon - -73.6179101)) <= 1000
+and 98194.860939613 * (abs(45.4961719 - B_prime.stop_lat) + abs(-73.6247091 - B_prime.stop_lon)) <= 1000
 
 -- distance maximale de marche
-and 51883.246273604 * (abs(A_prime.stop_lat - 45.5010115) + abs(A_prime.stop_lon - -73.6179101) + abs(45.4961719 - B_prime.stop_lat) + abs(-73.6247091 - B_prime.stop_lon)) <= 1000 -- d(A, A') + d(B', B)
+and 98194.860939613 * (abs(A_prime.stop_lat - 45.5010115) + abs(A_prime.stop_lon - -73.6179101) + abs(45.4961719 - B_prime.stop_lat) + abs(-73.6247091 - B_prime.stop_lon)) <= 1000 -- d(A, A') + d(B', B)
 
--- TODO: filtrer en fonction du jour de la semaine
+-- groupe par trajet
+group by A_prime_B_prime_trips.trip_id
 
 -- minimise le temps d'arrivée t(B') + 1.37 * d(B', B)
-order by time(B_prime_times.arrival_time) + 1.37 * 51883.246273604 * (abs (45.4961719 - B_prime.stop_lat) + abs(-73.6247091 - B_prime.stop_lon)) -- minimise t(B') + t(B)
+order by
+    -- minimise t(B') + t(B) par groupe
+    3600 * substr(B_prime_times.arrival_time, 0, 3) + strftime('%s', '00' || substr(B_prime_times.arrival_time, 3))
+    + 1.37 * 98194.860939613 * (abs(45.4961719 - B_prime.stop_lat) + abs(-73.6247091 - B_prime.stop_lon)),
+
+    -- minimise t(B') + t(B) sur le résultat
+    min(3600 * substr(B_prime_times.arrival_time, 0, 3) + strftime('%s', '00' || substr(B_prime_times.arrival_time, 3))
+    + 1.37 * 98194.860939613 * (abs(45.4961719 - B_prime.stop_lat) + abs(-73.6247091 - B_prime.stop_lon)))
 
 limit 10;
 

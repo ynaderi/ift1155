@@ -14,7 +14,9 @@ import android.view.Menu;
 import android.view.MenuItem;
 import android.view.View;
 import android.widget.AdapterView;
+import android.widget.ListView;
 import android.widget.SimpleAdapter;
+import android.widget.SimpleCursorAdapter;
 import android.widget.Spinner;
 
 import com.google.android.gms.maps.CameraUpdate;
@@ -82,7 +84,6 @@ public class MainActivity extends Activity {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
 
-        deleteDatabase("stm_gtfs");
         final SQLiteDatabase db = openOrCreateDatabase("stm_gtfs", MODE_PRIVATE, null);
 
         // création du schéma 1.0 et migrations
@@ -96,9 +97,6 @@ public class MainActivity extends Activity {
         populateDatabaseIntent.putExtra("tables", tables);
 
         startService(populateDatabaseIntent);
-
-        if (true)
-            return;
 
         MapFragment mapFragment = (MapFragment) getFragmentManager().findFragmentById(R.id.map);
 
@@ -121,12 +119,11 @@ public class MainActivity extends Activity {
             }
         });
 
-
         //
         try {
-            String kBestTrips = IOUtils.toString(getResources().openRawResource(R.raw.k_best_trips))
-                    .replaceAll("[\r\n]|--$", "")
-                    .replaceAll(":\\w+", "?");
+            String kBestTrips = IOUtils.toString(getResources().openRawResource(R.raw.k_best_trips_example))
+                    .replaceAll("--.*\r?\n", " ") // commentaires
+                    .replaceAll("\r?\n", " ");  // nouvelles lignes
 
             Log.i("test", kBestTrips);
             // [\w-] [A-Za-z]
@@ -134,25 +131,13 @@ public class MainActivity extends Activity {
             String aLat = "45.5010115", aLon = "-73.6179101";
             String maxWalkingDistance = "1000";
             String bLat = "45.4961719", bLon = "-73.6247091";
-            Cursor cursor = db.rawQuery(StringUtils.normalizeSpace(kBestTrips), new String[]{
-                    departureTime,
-                    aLat,
-                    aLon,
-                    aLat,
-                    aLon,
-                    maxWalkingDistance,
-                    bLat,
-                    bLon,
-                    maxWalkingDistance,
-                    aLat,
-                    aLon,
-                    bLat,
-                    bLon,
-                    maxWalkingDistance,
-                    bLat,
-                    bLon,
-                    "10"
-            });
+            Cursor cursor = db.rawQuery(StringUtils.normalizeSpace(kBestTrips), new String[]{});
+
+            ((ListView) findViewById(R.id.trajets)).setAdapter(new SimpleCursorAdapter(this,
+                    android.R.layout.simple_list_item_2,
+                    cursor,
+                    new String[]{"trip_id", "stop_name"},
+                    new int[]{android.R.id.text1, android.R.id.text2}, 0x00));
         } catch (IOException e) {
             e.printStackTrace();
         }

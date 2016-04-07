@@ -5,6 +5,7 @@ import android.app.Notification;
 import android.app.NotificationManager;
 import android.content.ContentValues;
 import android.content.Intent;
+import android.database.Cursor;
 import android.database.DatabaseUtils;
 import android.database.sqlite.SQLiteDatabase;
 import android.util.Log;
@@ -32,7 +33,7 @@ public class PopulateDatabaseService extends IntentService {
     /**
      * Taille d'une batch pour insérer dans une transaction.
      */
-    public static int BATCH_SIZE = 25000;
+    public static int BATCH_SIZE = 100000;
 
     public PopulateDatabaseService() {
         super("");
@@ -56,20 +57,27 @@ public class PopulateDatabaseService extends IntentService {
 
         Log.d("test", "Population des tables: " + StringUtils.join(tables, ", "));
 
+        Cursor feedInfoCursor = db.query("feed_info", new String[]{"feed_start_date", "feed_end_date"}, null, new String[]{}, null, null, null);
+
         OkHttpClient client = new OkHttpClient();
 
-        try {
-            String lastModified = client.newCall(new Request.Builder()
-                    .head()
-                    .url("http://www.stm.info/sites/default/files/gtfs/gtfs_stm.zip")
-                    .build()).execute().header("Last-Modified");
+        if (feedInfoCursor.moveToFirst()) {
+            String feedStartDate  = feedInfoCursor.getString(feedInfoCursor.getColumnIndex("feed_start_date"));
+            String feedEndDate = feedInfoCursor.getString(feedInfoCursor.getColumnIndex("feed_end_date"));
 
-//            String feedEndData = db.query("feed_info", new String[]{"feed_end_date"}, null, new String[]{}, null, null, null).getString(0);
+            try {
+                String lastModified = client.newCall(new Request.Builder()
+                        .head()
+                        .url("http://www.stm.info/sites/default/files/gtfs/gtfs_stm.zip")
+                        .build()).execute().header("Last-Modified");
 
-            // TODO: comparer lastModified > feedEndDate (alors télécharger la mise à jour)
+                Log.i("test", feedStartDate + " <= " + lastModified + " <= " + feedEndDate);
 
-        } catch (IOException e) {
-            e.printStackTrace();
+                // TODO: si feedStartDate <= lastModified <= feedEndDate then return!
+
+            } catch (IOException e) {
+                e.printStackTrace();
+            }
         }
 
         Request req = new Request.Builder()
@@ -89,7 +97,7 @@ public class PopulateDatabaseService extends IntentService {
 
         // prépare la base pour l'insertion *massive*
         db.setForeignKeyConstraintsEnabled(false);
-        db.rawQuery("pragma journal_mode=memory", new String[]{});
+        db.rawQuery("pragma journal_mode=off", new String[]{});
         db.rawQuery("pragma synchronous=off", new String[]{});
 
         // vider les tables en question!
@@ -146,10 +154,10 @@ public class PopulateDatabaseService extends IntentService {
                                 insertHelper.prepareForInsert();
                                 insertHelper.execute();
                                 Log.i("test", "Inséré la batch #"
-                                        + (row.getRecordNumber() / BATCH_SIZE) + "/~" + (currentEntry.getSize() / cumulativeSizeApproximation / row.getRecordNumber() / BATCH_SIZE)
+                                        + (row.getRecordNumber() / BATCH_SIZE) + "/~" + ((currentEntry.getSize() / (cumulativeSizeApproximation / row.getRecordNumber())) / BATCH_SIZE)
                                         + " dans la table " + tableName
                                         + " en " + (System.currentTimeMillis() - batchBegin) + "ms"
-                                        + " (" + ((System.currentTimeMillis() - batchBegin) * 1000 / BATCH_SIZE) + " insert/sec)");
+                                        + " (" + BATCH_SIZE / (((System.currentTimeMillis() - batchBegin) / 1000)) + " insert/sec)");
                                 nm.notify(R.id.PROGRESS_NOTIFICATION_ID, new Notification.Builder(PopulateDatabaseService.this)
                                         .setContentTitle("Chargement de la table " + tableName + "...")
                                         .setSmallIcon(android.R.drawable.ic_popup_sync)

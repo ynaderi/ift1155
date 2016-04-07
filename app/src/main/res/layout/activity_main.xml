@@ -34,6 +34,11 @@
             android:timePickerMode="spinner"/>
     </LinearLayout>
 
+    <ListView
+        android:id="@+id/trajets"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"></ListView>
+
     <fragment xmlns:android="http://schemas.android.com/apk/res/android"
         xmlns:tools="http://schemas.android.com/tools"
         android:layout_width="match_parent"
@@ -41,6 +46,5 @@
         android:id="@+id/map"
         tools:context=".MapsActivity"
         android:name="com.google.android.gms.maps.MapFragment" />
-
 
 </LinearLayout>
