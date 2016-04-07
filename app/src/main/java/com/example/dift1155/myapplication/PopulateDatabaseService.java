@@ -14,9 +14,15 @@ import android.widget.Toast;
 import org.apache.commons.csv.CSVFormat;
 import org.apache.commons.csv.CSVParser;
 import org.apache.commons.csv.CSVRecord;
+import org.apache.commons.io.IOUtils;
 import org.apache.commons.lang3.StringUtils;
 
 import java.io.BufferedInputStream;
+import java.io.ByteArrayInputStream;
+import java.io.File;
+import java.io.FileInputStream;
+import java.io.FileNotFoundException;
+import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.InputStreamReader;
 import java.util.Arrays;
@@ -27,6 +33,7 @@ import java.util.zip.ZipInputStream;
 import okhttp3.OkHttpClient;
 import okhttp3.Request;
 import okhttp3.Response;
+import okio.Sink;
 
 public class PopulateDatabaseService extends IntentService {
 
@@ -85,15 +92,23 @@ public class PopulateDatabaseService extends IntentService {
                 .url("http://www.stm.info/sites/default/files/gtfs/gtfs_stm.zip")
                 .build();
 
-        Response res;
+        File outputFile;
         try {
-            res = client.newCall(req).execute();
+            outputFile = File.createTempFile("prefix", "extension", getCacheDir());
+            FileOutputStream fio = new FileOutputStream(outputFile);
+            IOUtils.copyLarge(client.newCall(req).execute().body().byteStream(), fio);
+            IOUtils.closeQuietly(fio);
         } catch (IOException e) {
             e.printStackTrace();
             return;
         }
 
-        ZipInputStream zis = new ZipInputStream(new BufferedInputStream(res.body().byteStream()));
+        ZipInputStream zis = null;
+        try {
+            zis = new ZipInputStream(new FileInputStream(outputFile));
+        } catch (FileNotFoundException e) {
+            e.printStackTrace();
+        }
 
         // prépare la base pour l'insertion *massive*
         db.setForeignKeyConstraintsEnabled(false);
