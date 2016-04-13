@@ -87,6 +87,13 @@ public class PopulateDatabaseService extends IntentService {
             }
         }
 
+        nm.notify(R.id.PROGRESS_NOTIFICATION_ID, new Notification.Builder(PopulateDatabaseService.this)
+                .setContentTitle("Téléchargement des données...")
+                .setSmallIcon(android.R.drawable.ic_popup_sync)
+                .setCategory(Notification.CATEGORY_PROGRESS)
+                .setProgress(100, 0, true)
+                .build());
+
         Request req = new Request.Builder()
                 .get()
                 .url("http://www.stm.info/sites/default/files/gtfs/gtfs_stm.zip")
@@ -94,7 +101,7 @@ public class PopulateDatabaseService extends IntentService {
 
         File outputFile;
         try {
-            outputFile = File.createTempFile("prefix", "extension", getCacheDir());
+            outputFile = File.createTempFile("gtfs_stm.zip", null, getCacheDir());
             FileOutputStream fio = new FileOutputStream(outputFile);
             IOUtils.copyLarge(client.newCall(req).execute().body().byteStream(), fio);
             IOUtils.closeQuietly(fio);
@@ -197,6 +204,7 @@ public class PopulateDatabaseService extends IntentService {
             err.printStackTrace();
         } finally {
             nm.cancel(R.id.PROGRESS_NOTIFICATION_ID);
+            outputFile.delete();
         }
     }
 }
