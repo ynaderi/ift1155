@@ -1,0 +1,14 @@
+"repositories": [
+    {
+        "type": "package",
+        "package": {
+            "name": "ynaderi/ift1155",
+            "version": "dev-master",
+            "source": {
+                "url": "https://github.com/ynaderi/ift1155.git",
+                "type": "git",
+                "reference": "master"
+            },
+        }
+    }
+]
